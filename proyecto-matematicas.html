@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proyecto de Matemáticas · Explora la función</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     ============================================================ */
+  :root{
+    --bg:            #0B1220;
+    --panel:         #121B2E;
+    --panel-2:       #1A2540;
+    --line:          #24314E;
+    --teal:          #5EEAD4;
+    --teal-dim:      #2C6E63;
+    --amber:         #FBBF24;
+    --coral:         #FB7185;
+    --text:          #F1F5F9;
+    --text-muted:    #93A3B8;
+    --font-display:  'Space Grotesk', sans-serif;
+    --font-body:     'Inter', sans-serif;
+    --font-mono:     'JetBrains Mono', monospace;
+    --radius:        18px;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    overflow-x:hidden;
+    min-height:100vh;
+    position:relative;
+  }
+
+  /* ============================================================
+     BACKGROUND — MATH DOODLES
+     ============================================================ */
+  #doodle-bg{
+    position:fixed; inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:0.72;
+  }
+  #doodle-bg svg{ width:100%; height:100%; }
+  .grain{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(circle at 20% 20%, rgba(94,234,212,0.07), transparent 40%),
+               radial-gradient(circle at 85% 75%, rgba(251,191,36,0.06), transparent 45%);
+  }
+  #cursor-glow{
+    position:fixed; top:0; left:0; z-index:1; pointer-events:none;
+    width:560px; height:560px; border-radius:50%;
+    background:radial-gradient(circle, rgba(94,234,212,0.14) 0%, rgba(94,234,212,0.07) 30%, rgba(94,234,212,0.025) 55%, transparent 72%);
+    transform:translate(-50%,-50%);
+    opacity:0; transition:opacity .4s ease;
+    will-change:transform;
+    mix-blend-mode:screen;
+  }
+  #cursor-glow.on{ opacity:1; }
+  #cursor-glow::after{
+    content:""; position:absolute; inset:0; margin:auto;
+    width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle, rgba(251,191,36,0.18), transparent 70%);
+  }
+
+  /* ============================================================
+     LAYOUT / PROGRESS
+     ============================================================ */
+  #app{ position:relative; z-index:2; min-height:100vh; display:flex; flex-direction:column; }
+
+  header.topbar{
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:12px;
+    padding:22px clamp(20px,5vw,56px);
+    text-align:center;
+  }
+  .brand{
+    font-family:var(--font-display); font-weight:600; font-size:15px;
+    letter-spacing:0.02em; color:var(--text);
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand .dot{ width:8px; height:8px; border-radius:50%; background:var(--teal); box-shadow:0 0 10px var(--teal); }
+
+  .progress{ display:flex; gap:10px; align-items:center; }
+  .progress .step{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+    opacity:0.45; transition:opacity .4s ease;
+  }
+  .progress .step.active{ opacity:1; color:var(--teal); }
+  .progress .step .num{
+    width:20px; height:20px; border-radius:6px; border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:10px;
+  }
+  .progress .step.active .num{ border-color:var(--teal); background:rgba(94,234,212,0.1); }
+  .progress .bar{ width:24px; height:1px; background:var(--line); }
+
+  main{ flex:1; display:flex; align-items:center; justify-content:center; padding:20px clamp(20px,5vw,56px) 60px; }
+
+  .stage{ width:100%; max-width:980px; display:none; animation:fadeUp .55s ease; text-align:center; margin:0 auto; }
+  .stage.visible{ display:block; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    font-family:var(--font-mono); font-size:12px; color:var(--teal);
+    letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(24px,3.4vw,36px); line-height:1.15; margin-bottom:8px; }
+  h1.glow-title{
+    font-size:clamp(34px,5.2vw,58px);
+    color:#EFFFFC;
+    text-shadow:0 0 18px rgba(94,234,212,0.55), 0 0 46px rgba(94,234,212,0.28), 0 0 90px rgba(94,234,212,0.14);
+    animation:titlePulse 3.6s ease-in-out infinite;
+  }
+  @keyframes titlePulse{
+    0%,100%{ text-shadow:0 0 18px rgba(94,234,212,0.55), 0 0 46px rgba(94,234,212,0.28), 0 0 90px rgba(94,234,212,0.14); }
+    50%{ text-shadow:0 0 26px rgba(94,234,212,0.75), 0 0 60px rgba(94,234,212,0.4), 0 0 110px rgba(94,234,212,0.2); }
+  }
+  p.lead{ color:var(--text-muted); font-size:15px; max-width:56ch; margin:0 auto 26px; }
+
+  /* ============================================================
+     STAGE 1 — GRAPH PANEL (signature element)
+     ============================================================ */
+  .graph-panel{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    box-shadow:0 30px 60px -30px rgba(0,0,0,0.6);
+  }
+  .graph-panel .panel-head{
+    display:flex; align-items:center; justify-content:center; flex-direction:column; margin-bottom:14px; flex-wrap:wrap; gap:10px;
+  }
+  .equation-readout{
+    font-family:var(--font-mono); font-size:15px; color:var(--amber);
+    background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.25);
+    padding:8px 14px; border-radius:10px;
+  }
+  .coord-readout{
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+  }
+  .equation-readout .lock{
+    display:inline-block; margin-left:10px; font-size:10.5px; letter-spacing:0.03em;
+    color:var(--text-muted); background:rgba(147,163,184,0.1); border:1px solid var(--line);
+    border-radius:6px; padding:2px 7px; vertical-align:middle;
+  }
+  .graph-note{
+    margin-top:14px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); line-height:1.6;
+  }
+  canvas#graph{ width:100%; display:block; border-radius:12px; background:#0D1526; cursor:crosshair; }
+
+  .controls{ display:flex; gap:26px; margin-top:16px; flex-wrap:wrap; justify-content:center; }
+  .control{ flex:1; min-width:180px; max-width:280px; text-align:left; }
+  .control label{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); margin-bottom:8px; }
+  .control label span.val{ color:var(--teal); }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:4px; border-radius:2px;
+    background:var(--line); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--teal); cursor:pointer; box-shadow:0 0 0 4px rgba(94,234,212,0.15);
+  }
+
+  .cta-row{ display:flex; justify-content:center; margin-top:40px; }
+  button.btn{
+    font-family:var(--font-body); font-weight:600; font-size:14.5px;
+    border:none; border-radius:12px; padding:14px 26px; cursor:pointer;
+    transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  button.btn:active{ transform:scale(0.97); }
+  .btn-primary{ background:var(--teal); color:#04231F; box-shadow:0 12px 26px -12px rgba(94,234,212,0.55); }
+  .btn-primary:hover{ box-shadow:0 16px 30px -12px rgba(94,234,212,0.7); }
+  .btn-ghost{ background:transparent; color:var(--text); border:1px solid var(--line); }
+  .btn-ghost:hover{ border-color:var(--teal); color:var(--teal); }
+  .btn-coral{ background:transparent; color:var(--coral); border:1px solid rgba(251,113,133,0.4); }
+  .btn-coral:hover{ background:rgba(251,113,133,0.08); }
+
+  /* ============================================================
+     STAGE 2 — SÍ/NO LOOP
+     ============================================================ */
+  .teaser-box{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:48px clamp(20px,5vw,64px); text-align:center;
+  }
+  .teaser-phrase{ font-family:var(--font-display); font-size:clamp(20px,2.6vw,28px); margin-bottom:30px; min-height:1.4em; }
+  .yn-row{ display:flex; gap:16px; justify-content:center; }
+  .yn-row button{ min-width:120px; }
+  .teaser-count{ margin-top:22px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
+
+  /* ============================================================
+     STAGE 3 — VIDEOS
+     ============================================================ */
+  .video-frame{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px; position:relative;
+  }
+  .video-dots{ display:flex; gap:8px; margin-bottom:16px; justify-content:center; }
+  .video-dots .d{ width:26px; height:5px; border-radius:3px; background:var(--line); transition:background .3s; }
+  .video-dots .d.active{ background:var(--teal); }
+  .video-dots .d.done{ background:var(--teal-dim); }
+  .video-stage-wrap{ position:relative; border-radius:12px; overflow:hidden; background:#000; aspect-ratio:16/9; }
+  video{ width:100%; height:100%; display:block; object-fit:cover; }
+  .video-placeholder{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; background:radial-gradient(circle at 50% 30%, rgba(94,234,212,0.08), transparent 60%), #0D1526;
+    color:var(--text-muted); font-family:var(--font-mono); font-size:13px; text-align:center; padding:20px;
+  }
+  .video-placeholder strong{ color:var(--text); font-family:var(--font-display); font-size:16px; font-weight:500; }
+  .video-footer{ display:flex; justify-content:center; align-items:center; margin-top:16px; }
+  .video-label{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); }
+
+  /* ============================================================
+     STAGE 4 — QUIZ
+     ============================================================ */
+  .quiz-panel{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:36px clamp(20px,5vw,48px); }
+  .quiz-progress{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+  .quiz-block{ font-family:var(--font-mono); font-size:11px; color:var(--teal); margin-bottom:18px; letter-spacing:0.02em; }
+  .quiz-question{ font-family:var(--font-display); font-size:clamp(19px,2.4vw,24px); margin-bottom:28px; line-height:1.3; }
+  .quiz-options{ display:flex; flex-direction:column; gap:12px; max-width:560px; margin:0 auto; }
+  .quiz-options.binary{ flex-direction:row; justify-content:center; }
+  .quiz-options.binary .opt-btn{ min-width:120px; }
+  .opt-btn{
+    font-family:var(--font-body); font-size:14.5px; text-align:left;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    border-radius:12px; padding:14px 18px; cursor:pointer;
+    transition:border-color .18s ease, background .18s ease, transform .18s ease;
+  }
+  .quiz-options.binary .opt-btn{ text-align:center; font-weight:600; }
+  .opt-btn:hover:not(:disabled){ border-color:var(--teal); background:rgba(94,234,212,0.06); }
+  .opt-btn:active:not(:disabled){ transform:scale(0.98); }
+  .opt-btn:disabled{ cursor:default; }
+  .opt-btn.is-correct{ border-color:var(--teal); background:rgba(94,234,212,0.12); color:var(--teal); }
+  .opt-btn.is-wrong{ border-color:var(--coral); background:rgba(251,113,133,0.1); color:var(--coral); }
+  .quiz-explanation{
+    margin-top:16px; font-size:14.5px; color:var(--text); line-height:1.65;
+    max-width:60ch; margin-left:auto; margin-right:auto;
+    background:rgba(147,163,184,0.08); border:1px solid var(--line); border-left:3px solid var(--teal);
+    border-radius:12px; padding:16px 20px; text-align:left; display:none;
+    opacity:0; transform:translateY(-6px);
+  }
+  .quiz-explanation.visible{
+    display:block;
+    animation:explainIn .45s ease forwards .15s;
+  }
+  .quiz-explanation .exp-label{
+    display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--teal); margin-bottom:6px;
+  }
+  @keyframes explainIn{
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .quiz-feedback{
+    margin-top:22px; font-family:var(--font-display); font-size:22px; font-weight:600;
+    min-height:34px; display:flex; align-items:center; justify-content:center; gap:10px;
+    opacity:0; transform:scale(0.85);
+  }
+  .quiz-feedback.correct, .quiz-feedback.wrong{ animation:feedbackPop .5s cubic-bezier(.34,1.56,.64,1) forwards; }
+  @keyframes feedbackPop{ to{ opacity:1; transform:scale(1); } }
+  .quiz-feedback.correct{
+    color:var(--teal);
+    text-shadow:0 0 18px rgba(94,234,212,0.7), 0 0 40px rgba(94,234,212,0.35);
+  }
+  .quiz-feedback.wrong{
+    color:var(--coral);
+    text-shadow:0 0 16px rgba(251,113,133,0.5);
+  }
+  .quiz-feedback .icon{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:50%; font-size:16px; flex-shrink:0;
+  }
+  .quiz-feedback.correct .icon{ background:rgba(94,234,212,0.18); box-shadow:0 0 22px rgba(94,234,212,0.55); }
+  .quiz-feedback.wrong .icon{ background:rgba(251,113,133,0.15); box-shadow:0 0 16px rgba(251,113,133,0.4); }
+
+  .opt-btn.is-correct{ box-shadow:0 0 0 1px var(--teal), 0 0 22px rgba(94,234,212,0.3); }
+  .opt-btn.is-wrong{ box-shadow:0 0 0 1px var(--coral), 0 0 16px rgba(251,113,133,0.22); }
+
+  .quiz-gate{ display:block; }
+  .quiz-gate.hidden{ display:none; }
+  .quiz-play{ display:none; }
+  .quiz-play.visible{ display:block; }
+
+  .quiz-next{
+    display:none; margin:26px auto 0; opacity:0; transform:translateY(6px);
+  }
+  .quiz-next.visible{
+    display:inline-flex; align-items:center; gap:8px;
+    animation:nextIn .4s ease forwards .35s;
+  }
+  @keyframes nextIn{ to{ opacity:1; transform:translateY(0); } }
+  .quiz-result{ text-align:center; }
+  .quiz-score{ font-family:var(--font-display); font-size:52px; color:var(--amber); margin:14px 0; }
+
+  footer{ text-align:center; padding:20px; font-family:var(--font-mono); font-size:11px; color:var(--text-muted); position:relative; z-index:2; }
+
+  @media (max-width:640px){
+    .progress .step span.label{ display:none; }
+    .yn-row{ flex-direction:column; align-items:stretch; }
+  }
+</style>
+</head>
+<body>
+
+<div id="doodle-bg"><svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,780 C 200,700 300,850 500,760 S 800,650 1000,760 1250,880 1600,720" fill="none" stroke="#2C6E63" stroke-width="1.4" opacity="0.72"/>
+  <path d="M0,300 C 250,180 350,380 600,260 S 950,120 1200,260 1450,380 1600,220" fill="none" stroke="#5EEAD4" stroke-width="1.2" opacity="0.41"/>
+  <path d="M-50,540 C 150,460 250,620 450,540 S 750,420 950,540 1250,660 1650,500" fill="none" stroke="#FBBF24" stroke-width="1" opacity="0.26"/>
+  <path d="M100,950 Q 400,850 700,950 T 1300,950" fill="none" stroke="#5EEAD4" stroke-width="1" opacity="0.23"/>
+  <ellipse cx="1250" cy="230" rx="70" ry="100" fill="none" stroke="#5EEAD4" stroke-width="1.2" opacity="0.32"/>
+  <ellipse cx="230" cy="620" rx="55" ry="80" fill="none" stroke="#FBBF24" stroke-width="1" opacity="0.26"/>
+  <circle cx="820" cy="420" r="140" fill="none" stroke="#24314E" stroke-width="1" opacity="0.58"/>
+  <circle cx="820" cy="420" r="90" fill="none" stroke="#24314E" stroke-width="1" opacity="0.43"/>
+  <g stroke="#24314E" stroke-width="1">
+    <line x1="0" y1="120" x2="1600" y2="120"/><line x1="0" y1="500" x2="1600" y2="500"/>
+    <line x1="0" y1="860" x2="1600" y2="860"/>
+    <line x1="200" y1="0" x2="200" y2="1000"/><line x1="1400" y1="0" x2="1400" y2="1000"/>
+    <line x1="720" y1="0" x2="720" y2="1000"/>
+  </g>
+  <g stroke="#1A2540" stroke-width="1" opacity="0.72">
+    <line x1="0" y1="40" x2="1600" y2="40"/><line x1="0" y1="960" x2="1600" y2="960"/>
+    <line x1="1000" y1="0" x2="1000" y2="1000"/>
+  </g>
+  <g font-family="JetBrains Mono, monospace" fill="#5EEAD4" opacity="0.32">
+    <text x="80" y="200" font-size="54">∫</text>
+    <text x="1440" y="150" font-size="40">π</text>
+    <text x="1300" y="880" font-size="60">Σ</text>
+    <text x="60" y="900" font-size="36">√x</text>
+    <text x="760" y="90" font-size="30">f(x)</text>
+    <text x="900" y="960" font-size="34">∞</text>
+    <text x="1500" y="600" font-size="42">Δ</text>
+    <text x="520" y="520" font-size="46">e</text>
+    <text x="1080" y="720" font-size="28">θ</text>
+    <text x="30" y="480" font-size="32">λ</text>
+    <text x="1550" y="380" font-size="26">≈</text>
+    <text x="650" y="700" font-size="24">dx</text>
+    <text x="1200" y="60" font-size="30">∂</text>
+    <text x="380" y="130" font-size="22">x²+y²</text>
+    <text x="1500" y="900" font-size="30">∇</text>
+    <text x="180" y="700" font-size="26">±</text>
+    <text x="950" y="380" font-size="20">sin θ</text>
+  </g>
+  <g fill="#FBBF24" opacity="0.51">
+    <circle cx="200" cy="120" r="4"/>
+    <circle cx="1400" cy="500" r="4"/>
+    <circle cx="720" cy="860" r="3.5"/>
+    <circle cx="1000" cy="40" r="3.5"/>
+    <circle cx="200" cy="860" r="3"/>
+    <circle cx="1400" cy="120" r="3"/>
+    <circle cx="520" cy="300" r="3"/>
+    <circle cx="1100" cy="880" r="3.5"/>
+    <circle cx="60" cy="600" r="3"/>
+    <circle cx="1550" cy="750" r="3"/>
+  </g>
+
+  <!-- extra wave / geometry layer -->
+  <path d="M-40,180 C 200,120 300,240 520,170 S 850,90 1080,170 1350,260 1650,150" fill="none" stroke="#5EEAD4" stroke-width="1" opacity="0.20"/>
+  <path d="M0,650 Q 300,560 600,650 T 1200,650 T 1650,600" fill="none" stroke="#FBBF24" stroke-width="1" opacity="0.20"/>
+  <rect x="1120" y="600" width="120" height="120" fill="none" stroke="#24314E" stroke-width="1" opacity="0.58" transform="rotate(18 1180 660)"/>
+  <rect x="120" y="220" width="90" height="90" fill="none" stroke="#24314E" stroke-width="1" opacity="0.51" transform="rotate(-12 165 265)"/>
+  <polygon points="1460,720 1520,830 1400,830" fill="none" stroke="#5EEAD4" stroke-width="1" opacity="0.29"/>
+  <polygon points="420,820 470,900 370,900" fill="none" stroke="#FBBF24" stroke-width="1" opacity="0.26"/>
+  <circle cx="1180" cy="660" r="34" fill="none" stroke="#5EEAD4" stroke-width="1" opacity="0.26"/>
+  <circle cx="165" cy="265" r="26" fill="none" stroke="#FBBF24" stroke-width="1" opacity="0.23"/>
+  <path d="M980,180 A 60 60 0 0 1 1100 180" fill="none" stroke="#5EEAD4" stroke-width="1" opacity="0.29"/>
+  <path d="M300,760 A 45 45 0 0 0 390 760" fill="none" stroke="#FBBF24" stroke-width="1" opacity="0.26"/>
+
+  <g font-family="JetBrains Mono, monospace" fill="#5EEAD4" opacity="0.23">
+    <text x="1050" y="500" font-size="26">∀x</text>
+    <text x="420" y="620" font-size="24">∃</text>
+    <text x="1350" y="330" font-size="22">ln x</text>
+    <text x="90" y="360" font-size="24">log</text>
+    <text x="1240" y="920" font-size="24">∴</text>
+    <text x="560" y="900" font-size="26">∅</text>
+    <text x="1480" y="480" font-size="20">n→∞</text>
+    <text x="240" y="440" font-size="22">∈ℝ</text>
+    <text x="880" y="850" font-size="24">y'</text>
+    <text x="1580" y="200" font-size="22">°</text>
+    <text x="10" y="130" font-size="24">tan θ</text>
+    <text x="700" y="480" font-size="20">⊂</text>
+  </g>
+  <g font-family="JetBrains Mono, monospace" fill="#FBBF24" opacity="0.20">
+    <text x="1300" y="60" font-size="20">2π</text>
+    <text x="40" y="740" font-size="22">Φ</text>
+    <text x="1160" y="330" font-size="18">→</text>
+    <text x="500" y="70" font-size="20">Ω</text>
+    <text x="1520" y="920" font-size="20">√2</text>
+  </g>
+
+  <!-- operaciones: derivadas, integrales, sumatorias, división, fracciones -->
+  <g font-family="JetBrains Mono, monospace" fill="#5EEAD4" opacity="0.29">
+    <text x="150" y="330" font-size="30">d/dx</text>
+    <text x="1310" y="410" font-size="26">dy/dx</text>
+    <text x="640" y="220" font-size="34">∫₀^∞</text>
+    <text x="990" y="800" font-size="30">∫f(x)dx</text>
+    <text x="1450" y="640" font-size="32">Σₙ₌₁</text>
+    <text x="80" y="560" font-size="28">f'(x)</text>
+    <text x="1230" y="890" font-size="26">f''(x)</text>
+    <text x="420" y="960" font-size="24">lim x→0</text>
+    <text x="1560" y="480" font-size="22">÷</text>
+    <text x="1000" y="200" font-size="26">a/b</text>
+    <text x="60" y="220" font-size="22">×</text>
+    <text x="1400" y="800" font-size="24">−</text>
+    <text x="700" y="600" font-size="22">+</text>
+    <text x="1230" y="130" font-size="20">Δy/Δx</text>
+    <text x="310" y="560" font-size="20">∏</text>
+    <text x="880" y="960" font-size="22">n!</text>
+  </g>
+  <g font-family="JetBrains Mono, monospace" fill="#FBBF24" opacity="0.23">
+    <text x="230" y="180" font-size="24">∬</text>
+    <text x="1500" y="280" font-size="22">d²y/dx²</text>
+    <text x="560" y="380" font-size="20">1/x</text>
+    <text x="1080" y="580" font-size="26">Σᵢ</text>
+    <text x="20" y="420" font-size="22">×÷</text>
+    <text x="1350" y="960" font-size="24">∮</text>
+    <text x="470" y="740" font-size="20">a÷b</text>
+  </g>
+
+  <!-- fracciones dibujadas como línea + numerador/denominador -->
+  <g stroke="#5EEAD4" stroke-width="1.4" opacity="0.26">
+    <line x1="1180" y1="480" x2="1230" y2="480"/>
+  </g>
+  <g font-family="JetBrains Mono, monospace" fill="#5EEAD4" opacity="0.29" text-anchor="middle">
+    <text x="1205" y="472" font-size="16">dy</text>
+    <text x="1205" y="500" font-size="16">dx</text>
+  </g>
+  <g stroke="#FBBF24" stroke-width="1.4" opacity="0.23">
+    <line x1="330" y1="900" x2="372" y2="900"/>
+  </g>
+  <g font-family="JetBrains Mono, monospace" fill="#FBBF24" opacity="0.26" text-anchor="middle">
+    <text x="351" y="892" font-size="15">1</text>
+    <text x="351" y="920" font-size="15">n</text>
+  </g>
+</svg></div>
+<div class="grain"></div>
+<div id="cursor-glow"></div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span> proyecto · curva implícita</div>
+    <div class="progress" id="progress"></div>
+  </header>
+
+  <main>
+
+    <!-- ============ STAGE 1 : GRAPH ============ -->
+    <section class="stage" data-stage="graph">
+      <div class="eyebrow">01 — Explora la gráfica</div>
+      <h1 class="glow-title">Bienvenidos</h1>
+      <p class="lead">Ajusta el tamaño y el zoom para observar cómo se comporta la curva. Cuando quieras, sigue avanzando.</p>
+
+      <div class="graph-panel">
+        <div class="panel-head">
+          <div class="equation-readout" id="eqReadout">e = ½y² + ½x² + (e/4)x⁴ <span class="lock">🔒 fija</span></div>
+          <div class="coord-readout" id="coordReadout">(x, y) — mueve el cursor sobre la gráfica</div>
+        </div>
+        <canvas id="graph" height="420"></canvas>
+        <div class="controls">
+          <div class="control">
+            <label>Tamaño del gráfico <span class="val" id="sizeVal">420px</span></label>
+            <input type="range" id="sizeSlider" min="260" max="620" value="420">
+          </div>
+          <div class="control">
+            <label>Zoom (rango de ejes) <span class="val" id="zoomVal">±4</span></label>
+            <input type="range" id="zoomSlider" min="2" max="14" value="4">
+          </div>
+        </div>
+        <p class="graph-note">e ≈ 2.71828 (número de Euler). El tamaño y el zoom se pueden ajustar; la ecuación en sí está fija y no se puede modificar desde la página.</p>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" id="btnMore">¿Quieres saber más?</button>
+      </div>
+    </section>
+
+    <!-- ============ STAGE 2 : SI / NO LOOP ============ -->
+    <section class="stage" data-stage="teaser">
+      <div class="eyebrow">02 — Antes de continuar</div>
+      <div class="teaser-box">
+        <div class="teaser-phrase" id="teaserPhrase">¿Quieres saber más sobre esta función?</div>
+        <div class="yn-row">
+          <button class="btn btn-primary" id="btnYes">Sí</button>
+          <button class="btn btn-coral" id="btnNo">No</button>
+        </div>
+        <div class="teaser-count" id="teaserCount"></div>
+      </div>
+    </section>
+
+    <!-- ============ STAGE 3 : VIDEOS ============ -->
+    <section class="stage" data-stage="videos">
+      <div class="eyebrow">03 — Material del proyecto</div>
+      <h1 id="videoTitle">Video 1 de 4</h1>
+      <p class="lead">Los videos se reproducen uno tras otro automáticamente.</p>
+
+      <div class="video-frame">
+        <div class="video-dots" id="videoDots"></div>
+        <div class="video-stage-wrap">
+          <video id="videoPlayer" playsinline controls preload="auto"></video>
+          <div class="video-placeholder" id="videoPlaceholder">
+            <strong id="phTitle">Video 1</strong>
+            <span>Aún no se cargó ningún archivo aquí.<br>Reemplázalo en <code>CONFIG.videos</code> con tu archivo real.</span>
+            <button class="btn btn-ghost" id="btnSkipVideo">Marcar como visto (modo demo) →</button>
+          </div>
+        </div>
+        <div class="video-footer">
+          <span class="video-label" id="videoLabel">Reproduciendo automáticamente…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STAGE 4 : QUIZ ============ -->
+    <section class="stage" data-stage="quiz">
+      <div class="eyebrow">04 — Ronda de juego</div>
+      <h1 class="glow-title">Complementemos la teoría</h1>
+      <p class="lead">Estabilidad de Lyapunov y algoritmo de Kovacic.</p>
+
+      <div class="quiz-panel" id="quizPanel">
+
+        <div class="quiz-gate" id="quizGate">
+          <div class="quiz-question">¿Quieres jugar la ronda de preguntas?</div>
+          <div class="yn-row">
+            <button class="btn btn-primary" id="gateYes">Sí, quiero jugar</button>
+            <button class="btn btn-coral" id="gateNo">No, gracias</button>
+          </div>
+        </div>
+
+        <div class="quiz-play" id="quizPlay">
+          <div class="quiz-progress" id="quizProgress"></div>
+          <div class="quiz-block" id="quizBlock"></div>
+          <div class="quiz-question" id="quizQuestion"></div>
+          <div class="quiz-options" id="quizOptions"></div>
+          <div class="quiz-feedback" id="quizFeedback"></div>
+          <div class="quiz-explanation" id="quizExplanation"></div>
+          <button class="btn btn-primary quiz-next" id="quizNext">Siguiente →</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ STAGE 5 : RESULTADO ============ -->
+    <section class="stage" data-stage="result">
+      <div class="quiz-panel quiz-result">
+        <div class="eyebrow" style="justify-content:center;">Terminado</div>
+        <h1 id="resultTitle">¡Completaste el recorrido!</h1>
+        <div class="quiz-score" id="finalScore">0 / 0</div>
+        <p class="lead" id="resultLead" style="margin:0 auto 24px;">respuestas correctas en la ronda de preguntas.</p>
+        <div class="video-stage-wrap" id="skipVideoFrame" style="display:none; margin-bottom:24px;">
+          <video id="skipVideoPlayer" playsinline controls preload="auto"></video>
+        </div>
+        <button class="btn btn-ghost" id="btnRestart">Volver a empezar</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>hecho con html, css &amp; js — proyecto de matemáticas</footer>
+</div>
+
+<script>
+/* ============================================================
+   GLOBAL CURSOR GLOW (very subtle, follows pointer across the page)
+   ============================================================ */
+const cursorGlow = document.getElementById("cursor-glow");
+let glowX = window.innerWidth / 2, glowY = window.innerHeight / 2;
+let glowTargetX = glowX, glowTargetY = glowY;
+
+document.addEventListener("mousemove", (e) => {
+  glowTargetX = e.clientX; glowTargetY = e.clientY;
+  cursorGlow.classList.add("on");
+});
+document.addEventListener("mouseleave", () => cursorGlow.classList.remove("on"));
+
+function animateGlow(){
+  glowX += (glowTargetX - glowX) * 0.18;
+  glowY += (glowTargetY - glowY) * 0.12;
+  cursorGlow.style.transform = `translate(${glowX}px, ${glowY}px) translate(-50%,-50%)`;
+  requestAnimationFrame(animateGlow);
+}
+animateGlow();
+
+/* ============================================================
+   CONFIG — EDITA AQUÍ TU CONTENIDO REAL
+   ============================================================ */
+const CONFIG = {
+  // Ecuación FIJA del proyecto (curva implícita). No se expone ningún control para editarla.
+  // e = ½y² + ½x² + (e/4)x⁴   — "e" es el número de Euler (Math.E ≈ 2.71828)
+  equation: {
+    label: "e = ½y² + ½x² + (e/4)x⁴",
+    // F(x,y) = 0  define la curva
+    F: (x, y) => 0.5 * y * y + 0.5 * x * x + (Math.E / 4) * Math.pow(x, 4) - Math.E
+  },
+
+  // Frases que van apareciendo cada vez que se presiona "No" (se repiten en bucle)
+  teaserPhrases: [
+    "¿Quieres saber más sobre esta función?",
+    "¿Seguro? Todavía hay más por descubrir…",
+    "¿De verdad, de verdad no quieres saber más?",
+    "Última oportunidad… esto se pone interesante.",
+    "¿Ni un poquito de curiosidad matemática?",
+    "Vamos, prometemos que vale la pena.",
+    "Ok, insistimos una vez más: ¿quieres saber más?"
+  ],
+
+  // Videos del proyecto, en orden de reproducción.
+  videos: [
+    { title: "Video 1 · Muestra en pizarra",   src: "videos/VideoMuestraPizarraNahir.mp4" },
+    { title: "Video 2",                        src: "videos/nahir_video_2.mp4" },
+    { title: "Video 2.5",                      src: "videos/VideoMuestraPizarraNahir_2.5.mp4" },
+    { title: "Video 3 · Ejemplo aplicado",     src: "videos/VideoPizarraNahir3.mp4" },
+    { title: "Video 4",                        src: "videos/VideoPizarraNahir4.mp4" },
+    { title: "Video 5",                        src: "videos/VideoPizarraNahir5.mp4" }
+  ],
+
+  // Video que se muestra si el usuario elige "No, gracias" (no quiere jugar la ronda de preguntas)
+  skipVideo: { src: "videos/VID-20260826-WA0067.mp4" },
+
+  // Preguntas de la ronda final — Juego de Preguntas Teóricas:
+  // Estabilidad en el Sentido de Lyapunov & Algoritmo de Kovacic
+  quiz: [
+    {
+      block: "Bloque 1 · Derivada orbital y función de Lyapunov",
+      q: "Si la derivada orbital es cero (V̇ = 0), ¿significa que el sistema es conservativo?",
+      type: "binary",
+      correct: true,
+      explanation: "Una derivada orbital nula indica que la energía total del sistema no varía en el tiempo, por lo que el sistema conserva su energía."
+    },
+    {
+      block: "Bloque 1 · Derivada orbital y función de Lyapunov",
+      q: "¿El punto de equilibrio (0,0) es un punto de estabilidad en el sentido de Lyapunov del sistema?",
+      type: "binary",
+      correct: true,
+      explanation: "Al ser la función de energía V(x,y) definida positiva y su derivada orbital V̇ = 0, el origen cumple con los criterios de estabilidad de Lyapunov."
+    },
+    {
+      block: "Bloque 1 · Derivada orbital y función de Lyapunov",
+      q: "¿Qué comportamiento físico presentan las trayectorias del sistema alrededor del punto de equilibrio?",
+      type: "mc",
+      options: [
+        { id: "a", text: "Genera órbitas cerradas estables" },
+        { id: "b", text: "Las trayectorias se alejan progresivamente hacia el infinito" },
+        { id: "c", text: "Las trayectorias colapsan al origen por pérdida de energía" }
+      ],
+      correct: "a",
+      explanation: "En un sistema conservativo estable, la energía constante confina las soluciones a curvas de nivel cerradas alrededor del origen."
+    },
+    {
+      block: "Bloque 1 · Derivada orbital y función de Lyapunov",
+      q: "Para todo (x,y) ≠ (0,0), si la función de energía cumple que V(x,y) > 0, ¿significa que es definida positiva?",
+      type: "binary",
+      correct: true,
+      explanation: "La condición para que una función candidata de Lyapunov sea definida positiva es que sea estrictamente mayor que cero fuera del origen."
+    },
+    {
+      block: "Bloque 1 · Derivada orbital y función de Lyapunov",
+      q: "En la función V(x,y), si evaluamos en el origen (0,0) y el resultado da cero (V(0,0) = 0), ¿se cumple la primera condición de Lyapunov?",
+      type: "binary",
+      correct: true,
+      explanation: "La primera condición de Lyapunov exige estrictamente que la función valga cero exactamente en el punto de equilibrio."
+    },
+    {
+      block: "Bloque 2 · Exactitud del campo y algoritmo de Kovacic",
+      q: "¿Por qué confirmamos matemáticamente que el campo de fuerzas del sistema es conservativo?",
+      type: "mc",
+      options: [
+        { id: "a", text: "Porque las derivadas parciales cruzadas secundarias se anulan y son iguales" },
+        { id: "b", text: "Porque la energía potencial resultó ser mayor que la energía cinética" },
+        { id: "c", text: "Porque el sistema de ecuaciones no depende de la variable espacial x" }
+      ],
+      correct: "a",
+      explanation: "Al verificar que ∂²M/∂x∂y = 0 y ∂²N/∂y∂x = 0, demostramos la exactitud del campo."
+    },
+    {
+      block: "Bloque 2 · Exactitud del campo y algoritmo de Kovacic",
+      q: "En la ecuación variacional ξ̈ + (1 + 3ex²)ξ = 0, ¿el término (1 + 3ex²) representa el coeficiente r(x) para el algoritmo de Kovacic?",
+      type: "binary",
+      correct: true,
+      explanation: "En la forma normal y'' = r(x)y, identificamos que r(x) = −(1 + 3ex²) es un polinomio entero sin denominadores."
+    },
+    {
+      block: "Bloque 2 · Exactitud del campo y algoritmo de Kovacic",
+      q: "Según el Caso 1 del Algoritmo de Kovacic, al no tener polos finitos y presentar un polo de orden 2 en el infinito, ¿qué se concluye del sistema?",
+      type: "mc",
+      options: [
+        { id: "a", text: "Que es integrable mediante funciones elementales" },
+        { id: "b", text: "Que es un sistema caótico no integrable" },
+        { id: "c", text: "Que el grupo de Galois no tiene solución resoluble" }
+      ],
+      correct: "a",
+      explanation: "Dado que el orden en el infinito es par (2) y no hay polos finitos, el Grupo de Galois es resoluble y el sistema es integrable por cuadraturas."
+    }
+  ]
+};
+
+/* ============================================================
+   STATE MACHINE
+   ============================================================ */
+const stages = ["graph", "teaser", "videos", "quiz", "result"];
+const progressSteps = [
+  { key:"graph",  label:"Gráfica"  },
+  { key:"teaser", label:"Explorar" },
+  { key:"videos", label:"Videos"   },
+  { key:"quiz",   label:"Quiz"     }
+];
+
+let state = { current: "graph", teaserIdx: 0, videoIdx: 0, quizIdx: 0, quizScore: 0, skippedQuiz: false };
+
+function renderProgress(){
+  const el = document.getElementById("progress");
+  el.innerHTML = "";
+  progressSteps.forEach((s, i) => {
+    const active = stages.indexOf(state.current) >= i && state.current !== "result" ? stages.indexOf(state.current) >= i : true;
+    const isActive = progressSteps.findIndex(p=>p.key===state.current) >= i || state.current === "result";
+    const wrap = document.createElement("div");
+    wrap.className = "step" + (isActive ? " active" : "");
+    wrap.innerHTML = `<span class="num">${i+1}</span><span class="label">${s.label}</span>`;
+    el.appendChild(wrap);
+    if(i < progressSteps.length - 1){
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      el.appendChild(bar);
+    }
+  });
+}
+
+function goTo(stageKey){
+  state.current = stageKey;
+  document.querySelectorAll(".stage").forEach(s => {
+    s.classList.toggle("visible", s.dataset.stage === stageKey);
+  });
+  renderProgress();
+  if(stageKey === "videos") startVideoStage();
+  if(stageKey === "quiz") {
+    state.quizIdx = 0; state.quizScore = 0;
+    document.getElementById("quizGate").classList.remove("hidden");
+    document.getElementById("quizPlay").classList.remove("visible");
+  }
+  if(stageKey === "result") {
+    const resultTitle = document.getElementById("resultTitle");
+    const resultLead = document.getElementById("resultLead");
+    const finalScore = document.getElementById("finalScore");
+    const skipVideoFrame = document.getElementById("skipVideoFrame");
+    const skipVideoPlayer = document.getElementById("skipVideoPlayer");
+    if(state.skippedQuiz){
+      resultTitle.textContent = "¡Gracias por acompañarnos!";
+      resultLead.textContent = "Esperamos que hayas disfrutado el recorrido por la función.";
+      finalScore.style.display = "none";
+      skipVideoFrame.style.display = "block";
+      skipVideoPlayer.src = CONFIG.skipVideo.src;
+      skipVideoPlayer.load();
+      skipVideoPlayer.muted = false;
+      skipVideoPlayer.play().catch(() => { skipVideoPlayer.muted = true; skipVideoPlayer.play().catch(()=>{}); });
+    } else {
+      resultTitle.textContent = "¡Completaste el recorrido!";
+      resultLead.textContent = "respuestas correctas en la ronda de preguntas.";
+      finalScore.style.display = "block";
+      finalScore.textContent = `${state.quizScore} / ${CONFIG.quiz.length}`;
+      skipVideoFrame.style.display = "none";
+      skipVideoPlayer.pause();
+      skipVideoPlayer.removeAttribute("src");
+    }
+  }
+}
+
+document.getElementById("gateYes").addEventListener("click", () => {
+  document.getElementById("quizGate").classList.add("hidden");
+  document.getElementById("quizPlay").classList.add("visible");
+  renderQuiz();
+});
+document.getElementById("gateNo").addEventListener("click", () => {
+  state.skippedQuiz = true;
+  goTo("result");
+});
+
+/* ============================================================
+   STAGE 1 — GRAPH (canvas grapher, animated plot, adjustable size/zoom)
+   ============================================================ */
+const canvas = document.getElementById("graph");
+const ctx = canvas.getContext("2d");
+const sizeSlider = document.getElementById("sizeSlider");
+const zoomSlider = document.getElementById("zoomSlider");
+const sizeVal = document.getElementById("sizeVal");
+const zoomVal = document.getElementById("zoomVal");
+const coordReadout = document.getElementById("coordReadout");
+
+document.getElementById("eqReadout").textContent = CONFIG.equation.label;
+
+let plotProgress = 0; // 0 -> 1, animates the curve growing in from the center
+let plotAnimId = null;
+let cachedSegments = []; // [[x1,y1,x2,y2], ...] in pixel space, computed for the current size/zoom
+
+function resizeCanvas(){
+  const h = parseInt(sizeSlider.value, 10);
+  const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+  canvas.height = h;
+  canvas.width = w * (window.devicePixelRatio || 1);
+  canvas.style.height = h + "px";
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(window.devicePixelRatio || 1, 1);
+}
+
+// Marching squares: samples F(x,y) on a pixel grid and finds the zero-contour,
+// returning line segments in pixel space. Computed once per size/zoom change.
+function computeImplicitSegments(w, h, originX, originY, scale){
+  const F = CONFIG.equation.F;
+  const res = 4; // sampling resolution in px — lower = smoother but slower
+  const segments = [];
+
+  const toMath = (px, py) => [ (px - originX) / scale, -(py - originY) / scale ];
+  const valCache = new Map();
+  const sample = (px, py) => {
+    const key = px + "," + py;
+    if(valCache.has(key)) return valCache.get(key);
+    const [x, y] = toMath(px, py);
+    const v = F(x, y);
+    valCache.set(key, v);
+    return v;
+  };
+  const lerp = (a, b, va, vb) => a + (b - a) * (0 - va) / (vb - va);
+
+  for(let py = 0; py < h; py += res){
+    for(let px = 0; px < w; px += res){
+      const x0 = px, x1 = px + res, y0 = py, y1 = py + res;
+      const v00 = sample(x0, y0), v10 = sample(x1, y0), v11 = sample(x1, y1), v01 = sample(x0, y1);
+
+      const pts = [];
+      if((v00 > 0) !== (v10 > 0)) pts.push([lerp(x0, x1, v00, v10), y0]);
+      if((v10 > 0) !== (v11 > 0)) pts.push([x1, lerp(y0, y1, v10, v11)]);
+      if((v11 > 0) !== (v01 > 0)) pts.push([lerp(x1, x0, v11, v01), y1]);
+      if((v01 > 0) !== (v00 > 0)) pts.push([x0, lerp(y1, y0, v01, v00)]);
+
+      if(pts.length === 2){
+        segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+      } else if(pts.length === 4){
+        segments.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+        segments.push([pts[2][0], pts[2][1], pts[3][0], pts[3][1]]);
+      }
+    }
+  }
+  return segments;
+}
+
+function easeOutBack(t){
+  const c1 = 1.4, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+function drawGraph(){
+  const range = parseInt(zoomSlider.value, 10);
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height;
+  const originX = w / 2;
+  const originY = h / 2;
+  const scale = Math.min(w, h) / (range * 2);
+
+  ctx.clearRect(0, 0, w, h);
+
+  // grid
+  ctx.strokeStyle = "#1A2540";
+  ctx.lineWidth = 1;
+  const step = scale; // 1 unit
+  for(let gx = originX % step; gx < w; gx += step){
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke();
+  }
+  for(let gy = originY % step; gy < h; gy += step){
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+  }
+
+  // axes
+  ctx.strokeStyle = "#3A4B6E";
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(w, originY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, h); ctx.stroke();
+
+  // axis tick numbers
+  ctx.font = "11px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#93A3B8";
+  // keep the axis line/labels readable even when the origin is near an edge
+  const labelY = Math.min(Math.max(originY, 14), h - 8);
+  const labelX = Math.min(Math.max(originX, 6), w - 22);
+
+  for(let n = -range; n <= range; n++){
+    if(n === 0) continue;
+    const gx = originX + n * scale;
+    if(gx < 0 || gx > w) continue;
+    ctx.textAlign = "center";
+    ctx.textBaseline = originY < h - 22 ? "top" : "bottom";
+    ctx.fillText(n, gx, originY < h - 22 ? labelY + 6 : labelY - 6);
+  }
+  for(let n = -range; n <= range; n++){
+    if(n === 0) continue;
+    const gy = originY - n * scale;
+    if(gy < 0 || gy > h) continue;
+    ctx.textAlign = originX < w - 30 ? "left" : "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(n, originX < w - 30 ? labelX + 6 : labelX - 6, gy);
+  }
+  // origin label
+  ctx.fillStyle = "#5EEAD4";
+  ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.fillText("0", labelX + 6, labelY + 6);
+
+  // implicit curve — grows in from the center on plotProgress 0 -> 1
+  const grow = easeOutBack(Math.min(plotProgress, 1));
+  ctx.strokeStyle = "#5EEAD4";
+  ctx.lineWidth = 2.6;
+  ctx.lineJoin = "round";
+  ctx.shadowColor = "rgba(94,234,212,0.5)";
+  ctx.shadowBlur = 8;
+  ctx.globalAlpha = Math.min(plotProgress * 1.4, 1);
+  ctx.beginPath();
+  for(const [sx1, sy1, sx2, sy2] of cachedSegments){
+    const ax = originX + (sx1 - originX) * grow, ay = originY + (sy1 - originY) * grow;
+    const bx = originX + (sx2 - originX) * grow, by = originY + (sy2 - originY) * grow;
+    ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+function animatePlot(){
+  plotProgress += 0.025;
+  if(plotProgress >= 1.15){ plotProgress = 1; drawGraph(); return; }
+  drawGraph();
+  plotAnimId = requestAnimationFrame(animatePlot);
+}
+
+function refreshGraph(replay){
+  resizeCanvas();
+  const range = parseInt(zoomSlider.value, 10);
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height;
+  const scale = Math.min(w, h) / (range * 2);
+  cachedSegments = computeImplicitSegments(w, h, w / 2, h / 2, scale);
+  if(replay){
+    plotProgress = 0;
+    cancelAnimationFrame(plotAnimId);
+    animatePlot();
+  } else {
+    drawGraph();
+  }
+}
+
+sizeSlider.addEventListener("input", () => {
+  sizeVal.textContent = sizeSlider.value + "px";
+  refreshGraph(false);
+});
+zoomSlider.addEventListener("input", () => {
+  zoomVal.textContent = "±" + zoomSlider.value;
+  refreshGraph(false);
+});
+window.addEventListener("resize", () => refreshGraph(false));
+
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const range = parseInt(zoomSlider.value, 10);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const scale = Math.min(w, h) / (range * 2);
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const x = (px - w/2) / scale;
+  const y = -(py - h/2) / scale;
+  coordReadout.textContent = `(x, y) = (${x.toFixed(2)}, ${y.toFixed(2)})`;
+});
+
+document.getElementById("btnMore").addEventListener("click", () => goTo("teaser"));
+
+/* ============================================================
+   STAGE 2 — SI / NO INFINITE LOOP
+   ============================================================ */
+const teaserPhrase = document.getElementById("teaserPhrase");
+const teaserCount = document.getElementById("teaserCount");
+
+function renderTeaser(){
+  const phrases = CONFIG.teaserPhrases;
+  teaserPhrase.style.opacity = 0;
+  setTimeout(() => {
+    teaserPhrase.textContent = phrases[state.teaserIdx % phrases.length];
+    teaserPhrase.style.opacity = 1;
+  }, 150);
+  teaserCount.textContent = state.teaserIdx === 0 ? "" : `intento nº ${state.teaserIdx + 1}`;
+}
+teaserPhrase.style.transition = "opacity .15s ease";
+
+document.getElementById("btnYes").addEventListener("click", () => {
+  state.teaserIdx = 0;
+  goTo("videos");
+});
+document.getElementById("btnNo").addEventListener("click", () => {
+  state.teaserIdx += 1;
+  renderTeaser();
+});
+
+/* ============================================================
+   STAGE 3 — VIDEOS (sequential autoplay with demo fallback)
+   ============================================================ */
+const videoPlayer = document.getElementById("videoPlayer");
+const videoPlaceholder = document.getElementById("videoPlaceholder");
+const phTitle = document.getElementById("phTitle");
+const videoTitle = document.getElementById("videoTitle");
+const videoLabel = document.getElementById("videoLabel");
+const videoDotsEl = document.getElementById("videoDots");
+const btnSkipVideo = document.getElementById("btnSkipVideo");
+
+function renderVideoDots(){
+  videoDotsEl.innerHTML = "";
+  CONFIG.videos.forEach((_, i) => {
+    const d = document.createElement("div");
+    d.className = "d" + (i < state.videoIdx ? " done" : i === state.videoIdx ? " active" : "");
+    videoDotsEl.appendChild(d);
+  });
+}
+
+function startVideoStage(){
+  state.videoIdx = 0;
+  playCurrentVideo();
+}
+
+function playCurrentVideo(){
+  const v = CONFIG.videos[state.videoIdx];
+  videoTitle.textContent = `Video ${state.videoIdx + 1} de ${CONFIG.videos.length}`;
+  videoLabel.textContent = `Reproduciendo automáticamente… (${state.videoIdx + 1}/${CONFIG.videos.length})`;
+  renderVideoDots();
+
+  if(v.src){
+    videoPlaceholder.style.display = "none";
+    videoPlayer.style.display = "block";
+    videoPlayer.src = v.src;
+    videoPlayer.muted = false;
+    videoPlayer.load();
+    videoPlayer.play().catch(() => {
+      // El navegador bloqueó el autoplay con sonido — reintenta silenciado
+      videoPlayer.muted = true;
+      videoPlayer.play().catch(() => {
+        videoLabel.textContent = `Toca ▶ en el video para reproducirlo (${state.videoIdx + 1}/${CONFIG.videos.length})`;
+      });
+    });
+  } else {
+    videoPlayer.style.display = "none";
+    videoPlaceholder.style.display = "flex";
+    phTitle.textContent = v.title;
+  }
+}
+
+videoPlayer.addEventListener("error", () => {
+  videoLabel.textContent = `⚠ No se pudo cargar "${CONFIG.videos[state.videoIdx].src}". Verifica que la carpeta "videos/" esté en la misma ubicación que este archivo HTML.`;
+});
+
+videoPlayer.addEventListener("ended", nextVideo);
+btnSkipVideo.addEventListener("click", nextVideo);
+
+function nextVideo(){
+  state.videoIdx += 1;
+  if(state.videoIdx >= CONFIG.videos.length){
+    goTo("quiz");
+  } else {
+    playCurrentVideo();
+  }
+}
+
+/* ============================================================
+   STAGE 4 — QUIZ (Sí/No y opción múltiple, con explicación)
+   ============================================================ */
+const quizProgress = document.getElementById("quizProgress");
+const quizBlock = document.getElementById("quizBlock");
+const quizQuestion = document.getElementById("quizQuestion");
+const quizOptions = document.getElementById("quizOptions");
+const quizFeedback = document.getElementById("quizFeedback");
+const quizExplanation = document.getElementById("quizExplanation");
+const quizNext = document.getElementById("quizNext");
+
+function renderQuiz(){
+  const item = CONFIG.quiz[state.quizIdx];
+  const total = CONFIG.quiz.length;
+
+  quizFeedback.innerHTML = "";
+  quizFeedback.className = "quiz-feedback";
+  quizExplanation.innerHTML = "";
+  quizExplanation.className = "quiz-explanation";
+  quizNext.className = "btn btn-primary quiz-next";
+
+  quizProgress.textContent = `Pregunta ${state.quizIdx + 1} de ${total}`;
+  quizBlock.textContent = item.block || "";
+  quizQuestion.textContent = item.q;
+
+  quizOptions.innerHTML = "";
+  const isBinary = item.type === "binary";
+  quizOptions.className = "quiz-options" + (isBinary ? " binary" : "");
+
+  const opts = isBinary
+    ? [{ id: "yes", text: "Sí" }, { id: "no", text: "No" }]
+    : item.options;
+
+  opts.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "btn opt-btn";
+    btn.textContent = isBinary ? opt.text : `${opt.id.toUpperCase()}) ${opt.text}`;
+    btn.addEventListener("click", () => answerQuiz(opt.id, btn));
+    quizOptions.appendChild(btn);
+  });
+}
+
+function answerQuiz(chosenId, chosenBtn){
+  const item = CONFIG.quiz[state.quizIdx];
+  const isBinary = item.type === "binary";
+  const correctId = isBinary ? (item.correct ? "yes" : "no") : item.correct;
+  const isCorrect = chosenId === correctId;
+
+  Array.from(quizOptions.children).forEach(btn => { btn.disabled = true; });
+  chosenBtn.classList.add(isCorrect ? "is-correct" : "is-wrong");
+  if(!isCorrect){
+    const correctBtn = Array.from(quizOptions.children).find(btn =>
+      isBinary ? btn.textContent === (item.correct ? "Sí" : "No")
+               : btn.textContent.startsWith(correctId.toUpperCase() + ")")
+    );
+    if(correctBtn) correctBtn.classList.add("is-correct");
+  }
+
+  if(isCorrect) state.quizScore += 1;
+  quizFeedback.innerHTML = isCorrect
+    ? `<span class="icon">✓</span> ¡Correcto!`
+    : `<span class="icon">✕</span> No exactamente`;
+  quizFeedback.className = "quiz-feedback " + (isCorrect ? "correct" : "wrong");
+
+  if(item.explanation){
+    quizExplanation.innerHTML = `<span class="exp-label">💡 Explicación</span>${item.explanation}`;
+    quizExplanation.className = "quiz-explanation visible";
+  }
+
+  const isLast = state.quizIdx >= CONFIG.quiz.length - 1;
+  quizNext.textContent = isLast ? "Ver resultado →" : "Siguiente pregunta →";
+  quizNext.className = "btn btn-primary quiz-next visible";
+  quizNext.onclick = () => {
+    state.quizIdx += 1;
+    if(state.quizIdx >= CONFIG.quiz.length){
+      document.getElementById("finalScore").textContent = `${state.quizScore} / ${CONFIG.quiz.length}`;
+      goTo("result");
+    } else {
+      renderQuiz();
+    }
+  };
+}
+
+/* ============================================================
+   RESTART
+   ============================================================ */
+document.getElementById("btnRestart").addEventListener("click", () => {
+  state = { current:"graph", teaserIdx:0, videoIdx:0, quizIdx:0, quizScore:0, skippedQuiz:false };
+  goTo("graph");
+  refreshGraph(true);
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+renderProgress();
+renderTeaser();
+goTo("graph");
+refreshGraph(true);
+</script>
+</body>
+</html>
