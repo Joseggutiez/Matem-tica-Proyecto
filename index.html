@@ -286,6 +286,10 @@
 
   .quiz-gate{ display:block; }
   .quiz-gate.hidden{ display:none; }
+  .quiz-gate-video{ display:none; }
+  .quiz-gate-video.visible{ display:block; }
+  .quiz-gate-prompt{ display:none; margin-top:26px; opacity:0; transform:translateY(-6px); }
+  .quiz-gate-prompt.visible{ display:block; animation:explainIn .45s ease forwards; }
   .quiz-play{ display:none; }
   .quiz-play.visible{ display:block; }
 
@@ -532,6 +536,20 @@
           </div>
         </div>
 
+        <div class="quiz-gate-video" id="quizGateVideo">
+          <div class="video-stage-wrap">
+            <video id="gateVideoPlayer" playsinline controls preload="auto"></video>
+          </div>
+          <div class="quiz-gate-prompt" id="quizGatePrompt">
+            <div class="quiz-question" id="gateLoopPhrase">¿Ahora sí quieres jugar la ronda de preguntas?</div>
+            <div class="yn-row">
+              <button class="btn btn-primary" id="gateLoopYes">Sí</button>
+              <button class="btn btn-coral" id="gateLoopNo">No</button>
+            </div>
+            <div class="teaser-count" id="gateLoopCount"></div>
+          </div>
+        </div>
+
         <div class="quiz-play" id="quizPlay">
           <div class="quiz-progress" id="quizProgress"></div>
           <div class="quiz-block" id="quizBlock"></div>
@@ -552,9 +570,6 @@
         <h1 id="resultTitle">¡Completaste el recorrido!</h1>
         <div class="quiz-score" id="finalScore">0 / 0</div>
         <p class="lead" id="resultLead" style="margin:0 auto 24px;">respuestas correctas en la ronda de preguntas.</p>
-        <div class="video-stage-wrap" id="skipVideoFrame" style="display:none; margin-bottom:24px;">
-          <video id="skipVideoPlayer" playsinline controls preload="auto"></video>
-        </div>
         <button class="btn btn-ghost" id="btnRestart">Volver a empezar</button>
       </div>
     </section>
@@ -607,6 +622,16 @@ const CONFIG = {
     "¿Ni un poquito de curiosidad matemática?",
     "Vamos, prometemos que vale la pena.",
     "Ok, insistimos una vez más: ¿quieres saber más?"
+  ],
+
+  // Frases del bucle que aparece después del video, cuando el usuario dijo que no quería jugar
+  gatePhrases: [
+    "¿Ahora sí quieres jugar la ronda de preguntas?",
+    "¿Seguro que no quieres intentarlo?",
+    "Vamos, solo son un par de preguntas.",
+    "¿De verdad, de verdad no quieres jugar?",
+    "Última oportunidad para jugar…",
+    "Ok, una vez más: ¿quieres jugar?"
   ],
 
   // Videos del proyecto, en orden de reproducción.
@@ -710,7 +735,7 @@ const progressSteps = [
   { key:"quiz",   label:"Quiz"     }
 ];
 
-let state = { current: "graph", teaserIdx: 0, videoIdx: 0, quizIdx: 0, quizScore: 0, skippedQuiz: false };
+let state = { current: "graph", teaserIdx: 0, videoIdx: 0, quizIdx: 0, quizScore: 0, gateLoopIdx: 0 };
 
 function renderProgress(){
   const el = document.getElementById("progress");
@@ -738,45 +763,63 @@ function goTo(stageKey){
   renderProgress();
   if(stageKey === "videos") startVideoStage();
   if(stageKey === "quiz") {
-    state.quizIdx = 0; state.quizScore = 0;
+    state.quizIdx = 0; state.quizScore = 0; state.gateLoopIdx = 0;
     document.getElementById("quizGate").classList.remove("hidden");
+    document.getElementById("quizGateVideo").classList.remove("visible");
+    document.getElementById("quizGatePrompt").classList.remove("visible");
     document.getElementById("quizPlay").classList.remove("visible");
+    const gateVideoPlayer = document.getElementById("gateVideoPlayer");
+    gateVideoPlayer.pause();
+    gateVideoPlayer.removeAttribute("src");
   }
   if(stageKey === "result") {
-    const resultTitle = document.getElementById("resultTitle");
-    const resultLead = document.getElementById("resultLead");
-    const finalScore = document.getElementById("finalScore");
-    const skipVideoFrame = document.getElementById("skipVideoFrame");
-    const skipVideoPlayer = document.getElementById("skipVideoPlayer");
-    if(state.skippedQuiz){
-      resultTitle.textContent = "¡Gracias por acompañarnos!";
-      resultLead.textContent = "Esperamos que hayas disfrutado el recorrido por la función.";
-      finalScore.style.display = "none";
-      skipVideoFrame.style.display = "block";
-      skipVideoPlayer.src = CONFIG.skipVideo.src;
-      skipVideoPlayer.load();
-      skipVideoPlayer.muted = false;
-      skipVideoPlayer.play().catch(() => { skipVideoPlayer.muted = true; skipVideoPlayer.play().catch(()=>{}); });
-    } else {
-      resultTitle.textContent = "¡Completaste el recorrido!";
-      resultLead.textContent = "respuestas correctas en la ronda de preguntas.";
-      finalScore.style.display = "block";
-      finalScore.textContent = `${state.quizScore} / ${CONFIG.quiz.length}`;
-      skipVideoFrame.style.display = "none";
-      skipVideoPlayer.pause();
-      skipVideoPlayer.removeAttribute("src");
-    }
+    document.getElementById("resultTitle").textContent = "¡Completaste el recorrido!";
+    document.getElementById("resultLead").textContent = "respuestas correctas en la ronda de preguntas.";
+    document.getElementById("finalScore").style.display = "block";
+    document.getElementById("finalScore").textContent = `${state.quizScore} / ${CONFIG.quiz.length}`;
   }
 }
 
-document.getElementById("gateYes").addEventListener("click", () => {
+function enterQuizPlay(){
   document.getElementById("quizGate").classList.add("hidden");
+  document.getElementById("quizGateVideo").classList.remove("visible");
   document.getElementById("quizPlay").classList.add("visible");
+  const gateVideoPlayer = document.getElementById("gateVideoPlayer");
+  gateVideoPlayer.pause();
   renderQuiz();
-});
+}
+
+document.getElementById("gateYes").addEventListener("click", enterQuizPlay);
+
 document.getElementById("gateNo").addEventListener("click", () => {
-  state.skippedQuiz = true;
-  goTo("result");
+  document.getElementById("quizGate").classList.add("hidden");
+  document.getElementById("quizGateVideo").classList.add("visible");
+  document.getElementById("quizGatePrompt").classList.remove("visible");
+
+  const gateVideoPlayer = document.getElementById("gateVideoPlayer");
+  gateVideoPlayer.src = CONFIG.skipVideo.src;
+  gateVideoPlayer.load();
+  gateVideoPlayer.muted = false;
+  gateVideoPlayer.play().catch(() => { gateVideoPlayer.muted = true; gateVideoPlayer.play().catch(()=>{}); });
+});
+
+// Cuando el video termina, revela el Sí/No debajo (sin cortar el video)
+document.getElementById("gateVideoPlayer").addEventListener("ended", () => {
+  state.gateLoopIdx = 0;
+  renderGateLoopPhrase();
+  document.getElementById("quizGatePrompt").classList.add("visible");
+});
+
+function renderGateLoopPhrase(){
+  const phrases = CONFIG.gatePhrases;
+  document.getElementById("gateLoopPhrase").textContent = phrases[state.gateLoopIdx % phrases.length];
+  document.getElementById("gateLoopCount").textContent = state.gateLoopIdx === 0 ? "" : `intento nº ${state.gateLoopIdx + 1}`;
+}
+
+document.getElementById("gateLoopYes").addEventListener("click", enterQuizPlay);
+document.getElementById("gateLoopNo").addEventListener("click", () => {
+  state.gateLoopIdx += 1;
+  renderGateLoopPhrase();
 });
 
 /* ============================================================
@@ -1152,7 +1195,7 @@ function answerQuiz(chosenId, chosenBtn){
    RESTART
    ============================================================ */
 document.getElementById("btnRestart").addEventListener("click", () => {
-  state = { current:"graph", teaserIdx:0, videoIdx:0, quizIdx:0, quizScore:0, skippedQuiz:false };
+  state = { current:"graph", teaserIdx:0, videoIdx:0, quizIdx:0, quizScore:0, gateLoopIdx:0 };
   goTo("graph");
   refreshGraph(true);
 });
